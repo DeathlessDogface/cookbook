@@ -82,9 +82,9 @@ def main(args):
 	ret = sc.test_all(**user_password)
 	print
 	if len(ret) == 4:
-		print "login to {}:{} successfully by {}/{}".format(*ret)
+		print "login to {}:{} successfully by {}/{}     ;-)".format(*ret)
 	else:
-		print "login to {}:{} failed after try {} times.".format(*ret)
+		print "login to {}:{} failed after try {} times.     ;-(".format(*ret)
 
 
 if __name__ == "__main__":
