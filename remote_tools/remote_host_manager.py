@@ -7,8 +7,8 @@ import os
 import sys
 import threading
 import warnings
-import paramiko
 
+import paramiko
 
 
 #
@@ -119,6 +119,17 @@ class BaseManager(object):
 #
 # ================================================================
 #
+class MaintenanceManager(BaseManager):
+    def check_health(self):
+        pass
+
+    def check_config(self):
+        pass
+
+
+#
+# ================================================================
+#
 class EnvironmentManager(BaseManager):
     def clear_TCS(self, sc):
         print("\n>>> clear TCS ...")
@@ -136,9 +147,11 @@ class EnvironmentManager(BaseManager):
         sc.ssh_cmd("yum remove $(rpm -qa | grep mariadb) -y")
         sc.ssh_cmd("rm /var/lib/mysql/* -rf")
         sc.ssh_cmd("rm /usr/lib/ocf/* -rf")
+
     def set_hostname(self, sc, node):
         print("\n>>>  set hostname:{}".format(self.CONF.get(node, 'name')))
         sc.ssh_cmd("hostnamectl set-hostname {}".format(self.CONF.get(node, 'name')))
+
     def init_disk(self, sc):
         print("\n>>> init disk on {}".format(sc.host))
         _disks = []
@@ -182,8 +195,6 @@ class EnvironmentManager(BaseManager):
                     "mdadm --grow --raid-devices=1 --force {}".format(disk['disk']))
             if disk['disk']:
                 sc.ssh_cmd("dd if=/dev/zero  of={} bs=1M count=1".format(disk['disk']))
-
-
 
     def set_timezone(self, sc, node):
         print("\n>>> set time zone for {}".format(node))
@@ -234,7 +245,7 @@ class EnvironmentManager(BaseManager):
             if ":" in addr:
                 config = ['DEVICE={}'.format(eth),
                           'NAME={}'.format(eth),
-                          'IPV6ADDR={}/112'.format(addr)]
+                          'IPV6ADDR={}/64'.format(addr)]
                 for opt, value in self.CONF.items('ifcfg-v6'):
                     config.append("{}={}".format(opt.upper(), value))
                 self.reset_file(sc, config, "/etc/sysconfig/network-scripts/ifcfg-{}".format(eth))
@@ -243,9 +254,9 @@ class EnvironmentManager(BaseManager):
                 for opt, value in self.CONF.items(eth):
                     config.append("{}={}".format(opt.upper(), value))
                 self.reset_file(sc, config, "/etc/sysconfig/network-scripts/ifcfg-{}".format(eth))
+            sc.ssh_cmd("ifdown {} && ifup {}".format(eth, eth))
         self.reset_file(sc, ['nameserver 10.96.1.18', 'nameserver 10.96.1.19', 'nameserver 8.8.8.8'],
                         '/etc/resolv.conf')
-        sc.ssh_cmd("systemctl restart network")
 
     def create_ssh_key(self, sc):
         print("\n>>> create ssh key")
@@ -309,16 +320,25 @@ class DeployTCSManager(BaseManager):
         sc.ssh_cmd("rm /tmp/upgrade_ceph/* -rf")
         sc.ssh_cmd("rm /tmp/deployment -rf")
 
-    def set_hosts(self, sc, node):
+    def set_hosts(self, sc, node, ha_flag, net_version):
         print("\n>>> edit /etc/hosts")
+        if ha_flag:
+            api_inte = self.CONF.get('vip', self.CONF.get(node, 'ha'))
+        else:
+            api_inte = self.CONF.get(node, self.CONF.get(node, 'manager'))
         hosts = [
             "127.0.0.1   localhost localhost.localdomain localhost4 localhost4.localdomain4 {}".format(
                 self.CONF.get(node, 'name')),
             "::1         localhost localhost.localdomain localhost6 localhost6.localdomain6 {}".format(
                 self.CONF.get(node, 'name')),
-            "{}   api.inte.lenovo.com".format(self.CONF.get('vip', self.CONF.get(node, 'ha'))),
-            "{}   controller".format(self.CONF.get('vip', self.CONF.get(node, 'ha'))),
+            "{}   api.inte.lenovo.com".format(api_inte),
         ]
+        if ha_flag:
+            hosts.append("{}   controller".format(api_inte))
+            for _host in self.CONF.get('ceph', 'controller').split(','):
+                hosts.append("{}   {}".format(self.CONF.get(_host, self.CONF.get(_host, 'manager')),
+                                              self.CONF.get(_host, 'name')))
+
         self.reset_file(sc, hosts, "/etc/hosts")
 
     def install_TCS(self, net_version):
@@ -353,7 +373,7 @@ class DeployTCSManager(BaseManager):
         install_config = [
             'HA_flag=YES',
             'ManageNetwork=\"{}\"'.format(self.CONF.get('vip', self.CONF.get(node, 'manager'))),
-            'PublicNetwork=\"{}\"'.format(self.CONF.get('vip', self.CONF.get(node, 'public'))),
+            # 'PublicNetwork=\"{}\"'.format(self.CONF.get('vip', self.CONF.get(node, 'public'))),
             'this_node={}'.format(self.CONF.get(node, self.CONF.get(node, 'manager')))]
         other = 2
         for _node in self.CONF.get('ceph', 'controller').split(','):
@@ -364,9 +384,11 @@ class DeployTCSManager(BaseManager):
             other += 1
         _ip = 1
         for eth, vip in self.CONF.items('vip'):
+            if not self.CONF.has_option(node, eth):
+                continue
             install_config.append('VIP{}=\"{}\"'.format(_ip, vip))
             if ":" in vip:
-                install_config.append('CIDR{}=\"{}\"'.format(_ip, 112))
+                install_config.append('CIDR{}=\"{}\"'.format(_ip, 64))
             else:
                 install_config.append('CIDR{}=\"{}\"'.format(_ip, 24))
             _ip += 1
@@ -443,17 +465,17 @@ class DeployManager(object):
                     password=self.CONF.get(node, 'password')) as sc:
                 print("\n>>> set environment on {}".format(node))
                 # self.env_manager.clear_TCS(sc)
-                self.env_manager.set_hostname(sc, node)
+                # self.env_manager.set_hostname(sc, node)
                 # self.env_manager.init_disk(sc)
-                self.env_manager.forbid_ssh_dns(sc)
-                self.env_manager.set_network(sc, node)
-                self.env_manager.set_timezone(sc, node)
-                self.env_manager.forbid_selinux(sc)
-                self.env_manager.forbid_firewall(sc)
+                # self.env_manager.forbid_ssh_dns(sc)
+                # self.env_manager.set_network(sc, node)
+                # self.env_manager.set_timezone(sc, node)
+                # self.env_manager.forbid_selinux(sc)
+                # self.env_manager.forbid_firewall(sc)
                 # self.env_manager.forbid_networkManager(sc,fb=False) # warning ! maybe connect public net failed
-                self.env_manager.install_sendmail(sc)
-                self.ssh_key[node] = self.env_manager.create_ssh_key(sc)
-                # break
+                # self.env_manager.install_sendmail(sc)
+                # self.ssh_key[node] = self.env_manager.create_ssh_key(sc)
+                break
 
         for node in self.CONF.get('env', 'node').split(','):
             print(">>> config environment on {}".format(node))
@@ -461,8 +483,8 @@ class DeployManager(object):
                     host=self.CONF.get(node, "deployip"),
                     username=self.CONF.get(node, 'user'),
                     password=self.CONF.get(node, 'password')) as sc:
-                self.env_manager.set_sshkey(sc, self.ssh_key, node)
-                # break
+                # self.env_manager.set_sshkey(sc, self.ssh_key, node)
+                break
 
         main_node = self.CONF.get('env', 'node').split(',')[0]
         with SSHClient(
@@ -470,7 +492,7 @@ class DeployManager(object):
                 username=self.CONF.get(main_node, 'user'),
                 password=self.CONF.get(main_node, 'password')) as sc:
             self.env_manager.check_network(sc, main_node)
-            # return
+            return
 
     def deploy_TCS(self, flag, net_version):
         controllers = self.CONF.get('ceph', 'controller').split(',')
@@ -483,7 +505,7 @@ class DeployManager(object):
                 # self.tcs_manager.clear_package(sc, controller)
                 # self.tcs_manager.send_package(sc, controller)
                 # self.tcs_manager.set_HA(sc,controller)
-                # self.tcs_manager.set_hosts(sc,controller)
+                # self.tcs_manager.set_hosts(sc, controller, flag, net_version)
                 break
         # return
         # self.install_TCS(net_version)
@@ -493,8 +515,8 @@ class DeployManager(object):
                 username=self.CONF.get(main_controller, 'user'),
                 password=self.CONF.get(main_controller, 'password')) as sc:
             # self.tcs_manager.deploy_HA(sc) # warning ! it is a long time
-            self.tcs_manager.upload_license(sc)
-            self.tcs_manager.create_cluster(sc)
+            # self.tcs_manager.upload_license(sc)
+            # self.tcs_manager.create_cluster(sc)
             self.tcs_manager.add_host(sc)
             # self.tcs_manager.deploy_cluster(sc)
             # self.tcs_manager.upgrade_tcs(sc,"deployment-standalone-daily_20180704_1036.tar.gz")
@@ -503,7 +525,8 @@ class DeployManager(object):
 
     def main(self, **kwargs):
         # self.set_environment()
-        self.deploy_TCS(flag='HA', net_version='ipv6')
+        # self.deploy_TCS(flag=True, net_version='ipv6')
+        self.deploy_TCS(flag=True, net_version='ipv4')
 
 
 #
