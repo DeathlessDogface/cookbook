@@ -250,7 +250,8 @@ class EnvironmentManager(BaseManager):
                     config.append("{}={}".format(opt.upper(), value))
                 self.reset_file(sc, config, "/etc/sysconfig/network-scripts/ifcfg-{}".format(eth))
             else:
-                config = ['IPADDR={}'.format(addr)]
+                config = ['IPADDR={}'.format(addr),
+                          'NAME={}'.format(eth),]
                 for opt, value in self.CONF.items(eth):
                     config.append("{}={}".format(opt.upper(), value))
                 self.reset_file(sc, config, "/etc/sysconfig/network-scripts/ifcfg-{}".format(eth))
@@ -475,16 +476,14 @@ class DeployManager(object):
                 # self.env_manager.forbid_networkManager(sc,fb=False) # warning ! maybe connect public net failed
                 # self.env_manager.install_sendmail(sc)
                 # self.ssh_key[node] = self.env_manager.create_ssh_key(sc)
-                break
 
         for node in self.CONF.get('env', 'node').split(','):
-            print(">>> config environment on {}".format(node))
             with SSHClient(
                     host=self.CONF.get(node, "deployip"),
                     username=self.CONF.get(node, 'user'),
                     password=self.CONF.get(node, 'password')) as sc:
+                print(">>> config environment on {}".format(node))
                 # self.env_manager.set_sshkey(sc, self.ssh_key, node)
-                break
 
         main_node = self.CONF.get('env', 'node').split(',')[0]
         with SSHClient(
@@ -504,10 +503,10 @@ class DeployManager(object):
                     password=self.CONF.get(controller, 'password')) as sc:
                 # self.tcs_manager.clear_package(sc, controller)
                 # self.tcs_manager.send_package(sc, controller)
-                # self.tcs_manager.set_HA(sc,controller)
-                # self.tcs_manager.set_hosts(sc, controller, flag, net_version)
-                break
-        # return
+                self.tcs_manager.set_HA(sc,controller)
+                self.tcs_manager.set_hosts(sc, controller, flag, net_version)
+                # break
+        return
         # self.install_TCS(net_version)
         print("operation on controller:{}".format(main_controller))
         with SSHClient(

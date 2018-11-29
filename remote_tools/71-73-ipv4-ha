@@ -1,0 +1,104 @@
+[env]
+node = node1,node2,node3
+net = enp9s0f0,enp4s0f0,enp4s0f1
+
+[node1]
+deployip = 10.110.144.71
+roles = controller,agent
+name = controller-1
+ha = enp4s0f0
+manager = enp4s0f0
+public = enp4s0f1
+storage = enp4s0f1
+enp9s0f0 = 192.168.1.71
+enp4s0f0 = 192.168.2.71
+enp4s0f1 = 192.168.3.71
+user = root
+password = 111111
+ipmi = 0
+
+[node2]
+deployip = 10.110.144.72
+roles = controller,agent
+name = controller-2
+ha = enp4s0f0
+manager = enp4s0f0
+public = enp4s0f1
+storage = enp4s0f1
+enp9s0f0 = 192.168.1.72
+enp4s0f0 = 192.168.2.72
+enp4s0f1 = 192.168.3.72
+user = root
+password = 111111
+ipmi = 0
+
+[node3]
+deployip = 10.110.144.73
+roles = controller,agent
+name = controller-3
+ha = enp4s0f0
+manager = enp4s0f0
+public = enp4s0f1
+storage = enp4s0f1
+enp9s0f0 = 192.168.1.73
+enp4s0f0 = 192.168.2.73
+enp4s0f1 = 192.168.3.73
+user = root
+password = 111111
+ipmi = 0
+
+
+[ifcfg-v6]
+BOOTPROTO = static
+ONBOOT    = YES
+TYPE      = Ethernet
+DEFROUTE  = yes
+PEERDNS   = yes
+PEERROUTES         = yes
+IPV4_FAILURE_FATAL = no
+IPV6INIT  = yes
+IPV6_AUTOCONF      = no
+IPV6_DEFROUTE      = yes
+IPV6_PEERDNS       = yes
+IPV6_PEERROUTES    = yes
+IPV6_FAILURE_FATAL = no
+IPV6_ADDR_GEN_MODE = stable-privacy
+
+[enp9s0f0]
+DEVICE    = enp9s0f0
+BOOTPROTO = static
+#GATEWAY   = 192.168.44.1
+NETMASK   = 255.255.255.0
+ONBOOT    = YES
+TYPE      = Ethernet
+
+[enp4s0f0]
+DEVICE    = enp4s0f0
+BOOTPROTO = static
+#GATEWAY   = 192.168.45.1
+NETMASK   = 255.255.255.0
+ONBOOT    = YES
+TYPE      = Ethernet
+
+[enp4s0f1]
+DEVICE    = enp4s0f1
+BOOTPROTO = static
+#GATEWAY   = 192.168.46.1
+NETMASK   = 255.255.255.0
+ONBOOT    = YES
+TYPE      = Ethernet
+
+[vip]
+enp4s0f0 = 192.168.2.100
+
+
+[ceph]
+cluster = ha-ipv4
+controller = node1,node2,node3
+agent   = node1,node2,node3
+client = node2,node5
+rack_id = 3
+group_id   = 3
+cluster_id = 3
+license = D:\Download\ThinkCloud_Storage_license_trial_2018-11-26.zip
+package = D:\Download\deployment-standalone-daily_20180822_97.tar.gz
