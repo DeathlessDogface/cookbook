@@ -126,7 +126,6 @@ class MaintenanceManager(BaseManager):
     def check_config(self):
         pass
 
-
 #
 # ================================================================
 #
@@ -245,13 +244,13 @@ class EnvironmentManager(BaseManager):
             if ":" in addr:
                 config = ['DEVICE={}'.format(eth),
                           'NAME={}'.format(eth),
-                          'IPV6ADDR={}/64'.format(addr)]
+                          'IPV6ADDR={}'.format(addr)]
                 for opt, value in self.CONF.items('ifcfg-v6'):
                     config.append("{}={}".format(opt.upper(), value))
                 self.reset_file(sc, config, "/etc/sysconfig/network-scripts/ifcfg-{}".format(eth))
             else:
                 config = ['IPADDR={}'.format(addr),
-                          'NAME={}'.format(eth),]
+                          'NAME={}'.format(eth), ]
                 for opt, value in self.CONF.items(eth):
                     config.append("{}={}".format(opt.upper(), value))
                 self.reset_file(sc, config, "/etc/sysconfig/network-scripts/ifcfg-{}".format(eth))
@@ -413,7 +412,8 @@ class DeployTCSManager(BaseManager):
     def create_cluster(self, sc):
         print("\n>>> create cluster")
         sc.cephmgmt("create-cluster",
-                    '--name', self.CONF.get('ceph', 'cluster'))
+                    '--name', self.CONF.get('ceph', 'cluster'),
+                    "--addr","beijing")
 
     def add_host(self, sc):
         print("\n>>> add host")
@@ -426,7 +426,8 @@ class DeployTCSManager(BaseManager):
                         "--clusterip", self.CONF.get(node, self.CONF.get(node, 'storage')),
                         "--server_user", self.CONF.get(node, 'user'),
                         "--server_pass", self.CONF.get(node, 'password'),
-                        "--rack_id", self.CONF.get('ceph', 'rack_id'))
+                        "--rack_id", self.CONF.get('ceph', 'rack_id'),
+                        "--ipmi_ip", self.CONF.get(node, 'ipmi'))
 
     def deploy_cluster(self, sc):
         print("\n>>> deploy cluster")
@@ -466,16 +467,16 @@ class DeployManager(object):
                     password=self.CONF.get(node, 'password')) as sc:
                 print("\n>>> set environment on {}".format(node))
                 # self.env_manager.clear_TCS(sc)
-                # self.env_manager.set_hostname(sc, node)
+                self.env_manager.set_hostname(sc, node)
                 # self.env_manager.init_disk(sc)
-                # self.env_manager.forbid_ssh_dns(sc)
-                # self.env_manager.set_network(sc, node)
-                # self.env_manager.set_timezone(sc, node)
-                # self.env_manager.forbid_selinux(sc)
-                # self.env_manager.forbid_firewall(sc)
-                # self.env_manager.forbid_networkManager(sc,fb=False) # warning ! maybe connect public net failed
+                self.env_manager.forbid_ssh_dns(sc)
+                self.env_manager.set_network(sc, node)
+                self.env_manager.set_timezone(sc, node)
+                self.env_manager.forbid_selinux(sc)
+                self.env_manager.forbid_firewall(sc)
+                self.env_manager.forbid_networkManager(sc) # warning ! maybe connect public net failed
                 # self.env_manager.install_sendmail(sc)
-                # self.ssh_key[node] = self.env_manager.create_ssh_key(sc)
+                self.ssh_key[node] = self.env_manager.create_ssh_key(sc)
 
         for node in self.CONF.get('env', 'node').split(','):
             with SSHClient(
@@ -483,7 +484,7 @@ class DeployManager(object):
                     username=self.CONF.get(node, 'user'),
                     password=self.CONF.get(node, 'password')) as sc:
                 print(">>> config environment on {}".format(node))
-                # self.env_manager.set_sshkey(sc, self.ssh_key, node)
+                self.env_manager.set_sshkey(sc, self.ssh_key, node)
 
         main_node = self.CONF.get('env', 'node').split(',')[0]
         with SSHClient(
@@ -503,10 +504,10 @@ class DeployManager(object):
                     password=self.CONF.get(controller, 'password')) as sc:
                 # self.tcs_manager.clear_package(sc, controller)
                 # self.tcs_manager.send_package(sc, controller)
-                self.tcs_manager.set_HA(sc,controller)
-                self.tcs_manager.set_hosts(sc, controller, flag, net_version)
-                # break
-        return
+                # self.tcs_manager.set_HA(sc,controller)
+                # self.tcs_manager.set_hosts(sc, controller, flag, net_version)
+                break
+        # return
         # self.install_TCS(net_version)
         print("operation on controller:{}".format(main_controller))
         with SSHClient(
@@ -523,9 +524,9 @@ class DeployManager(object):
             # return
 
     def main(self, **kwargs):
-        # self.set_environment()
+        self.set_environment()
         # self.deploy_TCS(flag=True, net_version='ipv6')
-        self.deploy_TCS(flag=True, net_version='ipv4')
+        # self.deploy_TCS(flag=True, net_version='ipv4')
 
 
 #

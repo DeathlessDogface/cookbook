@@ -23,7 +23,14 @@ class Logger(logging.getLoggerClass()):
             self.file_path, maxBytes=10 * 1024 * 1024, backupCount=5)
         Rthandler.setLevel(logging.DEBUG)
         formatter = logging.Formatter(
-            fmt='%(asctime)s %(process)d %(levelname)-8s %(pathname)s-%(lineno)s : %(message)s',
+            fmt="\n".join([
+                "%(asctime)s.%(msecs)03d",
+                "%(process)d %(processName)s   %(thread)d  %(threadName)s",
+                "%(pathname)s %(filename)s+%(lineno)s %(name)s %(funcName)s %(module)s",
+                "%(created)f %(relativeCreated)d",
+                "%(levelname)-8s %(levelno)s",
+                "%(context)s %(message)s"
+            ]),
             datefmt='%y-%m-%d %H:%M:%S')
         Rthandler.setFormatter(formatter)
         return Rthandler
@@ -90,7 +97,7 @@ def getLogger(name='default', console=True, file_path=None, debug=False):
     return cache[name]
 
 
-def main():
+def test():
     LOG = getLogger(name='test', file_path='testLog', debug=True)
     LOG.debug("this is a debug")
     LOG.info("this is a info")
@@ -100,4 +107,4 @@ def main():
 
 
 if __name__ == '__main__':
-    main()
+    test()

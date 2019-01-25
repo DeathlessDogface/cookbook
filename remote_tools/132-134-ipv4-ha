@@ -1,0 +1,84 @@
+[env]
+node = node1,node2,node3
+net = eth0
+
+[node1]
+deployip = 10.121.8.132
+roles = controller,agent
+name = controller-1
+ha = eth0
+manager = eth0
+public = eth0
+storage = eth0
+eth0 = 192.168.111.5
+user = root
+password = lenovo
+ipmi = 0
+
+[node2]
+deployip = 10.121.8.133
+roles = controller,agent
+name = controller-2
+ha = eth0
+manager = eth0
+public = eth0
+storage = eth0
+eth0 = 192.168.111.6
+user = root
+password = lenovo
+ipmi = 0
+
+[node3]
+deployip = 10.121.8.134
+roles = controller,agent
+name = controller-3
+ha = eth0
+manager = eth0
+public = eth0
+storage = eth0
+eth0 = 192.168.111.7
+user = root
+password = lenovo
+ipmi = 0
+
+
+[ifcfg-v6]
+BOOTPROTO = static
+ONBOOT    = YES
+TYPE      = Ethernet
+DEFROUTE  = yes
+PEERDNS   = yes
+PEERROUTES         = yes
+IPV4_FAILURE_FATAL = no
+IPV6INIT  = yes
+IPV6_AUTOCONF      = no
+IPV6_DEFROUTE      = yes
+IPV6_PEERDNS       = yes
+IPV6_PEERROUTES    = yes
+IPV6_FAILURE_FATAL = no
+IPV6_ADDR_GEN_MODE = stable-privacy
+
+[eth0]
+DEVICE    = eth0
+BOOTPROTO = static
+GATEWAY   = 192.168.111.1
+NETMASK   = 255.255.255.0
+ONBOOT    = YES
+TYPE      = Ethernet
+
+
+
+[vip]
+eth0 = 192.168.2.100
+
+
+[ceph]
+cluster = deploy_test
+controller = node1,node2,node3
+agent   = node1,node2,node3
+client = node2,node5
+rack_id = 1
+group_id   = 1
+cluster_id = 1
+license = D:\Download\ThinkCloud_Storage_license_trial_2018-11-26.zip
+package = D:\Download\deployment-standalone-daily_20180822_97.tar.gz
